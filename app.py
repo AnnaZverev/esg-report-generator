@@ -321,7 +321,7 @@ if st.button("🚀 Сгенерировать TCFD отчет", type="primary"):
                 gamma_prompt = build_gamma_prompt(company_name_input, reporting_year_input, quantitative, all_pdf_data)
                 
                 # Запускаем генерацию в Gamma
-                pdf_bytes = generate_with_gamma(GAMMA_API_KEY, gamma_prompt)
+                pdf_bytes = generate_with_gamma(GAMMA_API_KEY, gamma_prompt, company_name_input)
                 
                 if pdf_bytes:
                     st.session_state.generated_pdf = pdf_bytes
@@ -339,3 +339,4 @@ if st.session_state.generated_pdf:
         mime="application/pdf"
 
     )
+

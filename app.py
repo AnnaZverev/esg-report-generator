@@ -32,76 +32,176 @@ def extract_metrics_from_excel(uploaded_excel_file):
         st.error(f"Ошибка при обработке Excel файла: {e}")
         return None
 
-def extract_narrative_from_pdf(uploaded_pdf_file, gemini_api_key):
-    """Извлекает нарратив из PDF с помощью Gemini."""
+def extract_data_from_pdf(uploaded_pdf_file, gemini_api_key, excel_provided):
+    """
+    Извлекает данные из PDF, основываясь на 11 рекомендуемых раскрытиях TCFD.
+    Если Excel не предоставлен, пытается извлечь и количественные данные.
+    """
     try:
         genai.configure(api_key=gemini_api_key)
         pdf_reader = PyPDF2.PdfReader(uploaded_pdf_file)
         pdf_text = "".join(page.extract_text() for page in pdf_reader.pages)
+        model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
-        model = genai.GenerativeModel('gemini-2.5-pro')
-
-        prompts_en = {
-            "Governance": "Analyze the text and briefly describe the role of the Board of Directors and management in overseeing and managing climate-related risks.",
-            "Strategy": "Find the description of climate-related risks and opportunities for the company. Mention if a scenario analysis was conducted.",
-            "Risk Management": "Describe the company's processes for identifying, assessing, and managing climate-related risks.",
-            "Metrics and Targets": "Find and list the company's key future climate-related targets."
+        # --- ИЗМЕНЕНИЕ: Детализированные промпты по 11 раскрытиям TCFD ---
+        prompts_en_tcfd = {
+            # Governance (2 disclosures)
+            "Governance a) Board's oversight": "Describe the board’s oversight of climate-related risks and opportunities.",
+            "Governance b) Management's role": "Describe management’s role in assessing and managing climate-related risks and opportunities.",
+            
+            # Strategy (3 disclosures)
+            "Strategy a) Identified risks and opportunities": "Describe the climate-related risks and opportunities the organization has identified over the short, medium, and long term.",
+            "Strategy b) Impact on organization": "Describe the impact of climate-related risks and opportunities on the organization’s businesses, strategy, and financial planning.",
+            "Strategy c) Resilience of strategy": "Describe the resilience of the organization’s strategy, taking into consideration different climate-related scenarios, including a 2°C or lower scenario.",
+            
+            # Risk Management (3 disclosures)
+            "Risk Management a) Risk identification processes": "Describe the organization’s processes for identifying and assessing climate-related risks.",
+            "Risk Management b) Risk management processes": "Describe the organization’s processes for managing climate-related risks.",
+            "Risk Management c) Integration into overall risk management": "Describe how processes for identifying, assessing, and managing climate-related risks are integrated into the organization’s overall risk management.",
+            
+            # Metrics and Targets (3 disclosures)
+            "Metrics and Targets a) Metrics used": "Disclose the metrics used by the organization to assess climate-related risks and opportunities.",
+            "Metrics and Targets b) GHG Emissions": "Disclose Scope 1, Scope 2, and, if appropriate, Scope 3 greenhouse gas (GHG) emissions, and the related risks.",
+            "Metrics and Targets c) Targets used": "Describe the targets used by the organization to manage climate-related risks and opportunities and performance against targets."
         }
+        
+        # Если Excel не предоставлен, мы все еще можем попытаться извлечь ключевые цифры
+        if not excel_provided:
+            prompts_en_tcfd['Quantitative Data (if available)'] = (
+                "Find the following key metrics for the most recent reporting year in the text. "
+                "Provide only the numerical value. If a metric is not found, return 'Not available'.\n"
+                "- Scope 1 GHG Emissions (in million tCO2e):\n"
+                "- Scope 2 GHG Emissions (in million tCO2e):\n"
+            )
 
-        narrative_data = {}
+        extracted_data = {}
         status_placeholder = st.empty()
-        for section, prompt in prompts_en.items():
-            status_placeholder.info(f"🤖 Анализ PDF: извлечение раздела '{section}'...")
+        total_prompts = len(prompts_en_tcfd)
+        
+        for i, (section, prompt) in enumerate(prompts_en_tcfd.items()):
+            status_placeholder.info(f"🤖 Анализ PDF: извлечение раскрытия '{section}' ({i+1}/{total_prompts})...")
             response = model.generate_content(
-                "You are a professional ESG analyst. Provide a clear, structured summary in ENGLISH based on the user's request.\n\n"
+                "You are a professional ESG analyst. Your task is to analyze the following sustainability report text "
+                "and provide a clear, structured summary in ENGLISH based on the user's request. Focus only on the information relevant to the specific request.\n\n"
                 f"REQUEST: {prompt}\n\n"
                 f"SOURCE TEXT (in Russian):\n{pdf_text}"
             )
-            narrative_data[section] = response.text
-        status_placeholder.success("✅ Анализ PDF завершен.")
-        return narrative_data
+            extracted_data[section] = response.text
+        
+        status_placeholder.success("✅ Детализированный анализ PDF по 11 раскрытиям TCFD завершен.")
+        return extracted_data
     except Exception as e:
         st.error(f"Ошибка при работе с Gemini API: {e}")
-        return None
+        return {}
 
 def build_gamma_prompt(company_name, reporting_year, quantitative_data, narrative_data):
-    """Собирает финальный промпт для Gamma."""
+    """
+    Собирает продвинутый, детализированный промпт для Gamma,
+    который умеет обрабатывать отсутствующую информацию.
+    """
+    
+    # --- Хелпер-функция для обработки отсутствующих данных ---
+    def process_disclosure(disclosure_key, default_text="Information not disclosed in the source report."):
+        """Проверяет, есть ли данные. Если нет, возвращает стандартную фразу."""
+        content = narrative_data.get(disclosure_key, "").strip()
+        # Считаем, что данных нет, если ответ пустой или содержит стандартные фразы о ненаходке
+        if not content or "not found" in content.lower() or "not provide" in content.lower():
+            return default_text
+        return content
+
+    # --- Подготовка всех 11 раскрытий с помощью хелпера ---
+    gov_a = process_disclosure("Governance a) Board's oversight")
+    gov_b = process_disclosure("Governance b) Management's role")
+    
+    strat_a = process_disclosure("Strategy a) Identified risks and opportunities")
+    strat_b = process_disclosure("Strategy b) Impact on organization")
+    strat_c = process_disclosure("Strategy c) Resilience of strategy")
+
+    risk_a = process_disclosure("Risk Management a) Risk identification processes")
+    risk_b = process_disclosure("Risk Management b) Risk management processes")
+    risk_c = process_disclosure("Risk Management c) Integration into overall risk management")
+
+    metrics_a = process_disclosure("Metrics and Targets a) Metrics used")
+    metrics_b = process_disclosure("Metrics and Targets b) GHG Emissions") # Этот пункт мы дополним цифрами
+    metrics_c = process_disclosure("Metrics and Targets c) Targets used")
+
+    # --- Формирование блока с количественными данными ---
     def format_metric(label, value, unit):
-        try:
-            float(value)
-            return f"- {label}: {value} {unit}"
-        except (ValueError, TypeError):
-            return f"- {label}: Not available"
+        if value and str(value).lower() != "not available":
+            return f"- **{label}:** {value} {unit}"
+        return f"- **{label}:** Not available"
 
     metrics_text = "\n".join([
-        format_metric("Scope 1 GHG Emissions", quantitative_data.get('Выбросы Scope 1 (млн т CO2-экв.)'), "million tCO2e"),
-        format_metric("Scope 2 GHG Emissions", quantitative_data.get('Выбросы Scope 2 (млн т CO2-экв.)'), "million tCO2e"),
-        format_metric("Total Water Withdrawal", quantitative_data.get('Общий забор воды (млн м3)'), "million m³")
+        format_metric("Scope 1 GHG Emissions", quantitative_data.get('Scope 1 GHG Emissions'), "million tCO2e"),
+        format_metric("Scope 2 GHG Emissions", quantitative_data.get('Scope 2 GHG Emissions'), "million tCO2e"),
     ])
 
-    return f"""
-# TOPIC: Climate-Related Financial Disclosure (TCFD) Report for {company_name}, {reporting_year}.
----
-## SECTION 1: Governance
-**Key points to elaborate on:**
-- {narrative_data.get("Governance", "No specific data found.")}
----
-## SECTION 2: Strategy
-**Key points to elaborate on:**
-- {narrative_data.get("Strategy", "No specific data found.")}
----
-## SECTION 3: Risk Management
-**Key points to elaborate on:**
-- {narrative_data.get("Risk Management", "No specific data found.")}
----
-## SECTION 4: Metrics and Targets
-**Key points to elaborate on:**
-- Present key metrics and strategic targets.
-- Use the following data:
-  {metrics_text}
-  - Narrative on targets: "{narrative_data.get("Metrics and Targets", "No specific data found.")}"
-"""
+    # --- Финальная сборка промпта ---
+    
+    final_prompt = f"""
+# TASK: Create a professional TCFD Report for {company_name}, {reporting_year}.
 
+**ROLE:** You are an expert ESG analyst from a top-tier consulting firm. Your task is to synthesize the provided raw data points into a polished, investor-grade report that follows the TCFD framework.
+
+**IMPORTANT INSTRUCTION:** If a data point is marked as 'Information not disclosed...', you must explicitly and professionally state this in the final report. DO NOT ignore missing data. Frame it as a finding of your analysis.
+
+---
+---
+
+# TCFD Report: {company_name} ({reporting_year})
+
+---
+## 1. Governance
+*Disclosing the organization’s governance around climate-related risks and opportunities.*
+
+**a) Board’s Oversight:**
+{gov_a}
+
+**b) Management’s Role:**
+{gov_b}
+
+---
+## 2. Strategy
+*Disclosing the actual and potential impacts of climate-related risks and opportunities on the organization’s businesses, strategy, and financial planning.*
+
+**a) Identified Risks and Opportunities:**
+{strat_a}
+
+**b) Impact on Business, Strategy, and Financial Planning:**
+{strat_b}
+
+**c) Resilience of Strategy (Scenario Analysis):**
+{strat_c}
+
+---
+## 3. Risk Management
+*Disclosing how the organization identifies, assesses, and manages climate-related risks.*
+
+**a) Risk Identification and Assessment Processes:**
+{risk_a}
+
+**b) Risk Management Processes:**
+{risk_b}
+
+**c) Integration into Overall Risk Management:**
+{risk_c}
+
+---
+## 4. Metrics and Targets
+*Disclosing the metrics and targets used to assess and manage relevant climate-related risks and opportunities.*
+
+**a) Metrics Used for Assessment:**
+{metrics_a}
+
+**b) Greenhouse Gas (GHG) Emissions:**
+{metrics_b}
+Key reported emissions data includes:
+{metrics_text}
+
+**c) Targets and Performance:**
+{metrics_c}
+"""
+    return final_prompt
 def generate_with_gamma(gamma_api_key, gamma_prompt, company_name):
     """Вызывает Gamma API, отслеживает статус и возвращает байты PDF файла."""
     headers = {"X-API-KEY": gamma_api_key, "Content-Type": "application/json"}
@@ -191,7 +291,7 @@ if st.button("🚀 Сгенерировать TCFD отчет", type="primary"):
         with st.spinner("Пожалуйста, подождите, идет магия... Это может занять несколько минут."):
             # Шаг 1: Извлечение данных
             quantitative = extract_metrics_from_excel(excel_file)
-            narrative = extract_narrative_from_pdf(pdf_file, GEMINI_API_KEY)
+            all_pdf_data = extract_data_from_pdf(pdf_file, GEMINI_API_KEY, excel_provided)
 
             if quantitative and narrative:
                 # Шаг 2: Сборка промпта для Gamma
@@ -216,7 +316,3 @@ if st.session_state.generated_pdf:
         mime="application/pdf"
 
     )
-
-
-
-

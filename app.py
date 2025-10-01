@@ -111,7 +111,7 @@ def generate_with_gamma(gamma_api_key, gamma_prompt, company_name):
         "exportAs": "pdf",
         "textMode": "condense",
         "additionalInstructions": "It is critically important that all text fits neatly within the page boundaries. Adjust layouts or slightly condense the text on each page to prevent any overflow.",
-        "themeName": "ESG_Anna", # Ваша кастомная тема
+        "themeName": "ESG_Anna",
         "textOptions": {"language": "en", "amount": "detailed"},
         "imageOptions": {"source": "aiGenerated", "style": "photorealistic, corporate, clean"},
         "cardOptions": {"dimensions": "a4"}
@@ -128,17 +128,19 @@ def generate_with_gamma(gamma_api_key, gamma_prompt, company_name):
         raise ValueError(f"Не удалось получить 'generationId'. Ответ: {generation_data}")
 
     status_placeholder = st.empty()
-    status_placeholder.info(f"✅ Запрос принят Gamma. ID задачи: {generation_id}. Начинаю проверку статуса...")
+    status_placeholder.info(f"✅ Запрос принят. ID задачи: {generation_id}. Начинаю генерацию...")
     
     status_endpoint = f"https://public-api.gamma.app/v0.2/generations/{generation_id}"
     download_url = None
 
-    for i in range(25):
+    for i in range(25): 
+
+        status_placeholder.info(f"🎨 Генерирую отчет по требованиям TCFD... Шаг {i+1} из максимум 25")
+        
         status_response = requests.get(status_endpoint, headers=headers)
         status_response.raise_for_status()
         status_data = status_response.json()
         current_status = status_data.get("status")
-        status_placeholder.info(f"🎨 Статус генерации в Gamma: {current_status}... ({i+1}/25)")
         
         if current_status == "completed":
             download_url = status_data.get("exportUrl")
@@ -214,5 +216,6 @@ if st.session_state.generated_pdf:
         mime="application/pdf"
 
     )
+
 
 

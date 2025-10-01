@@ -8,18 +8,6 @@ import google.generativeai as genai
 from io import BytesIO
 import os
 
-# Загружаем секреты из переменных окружения Render
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GAMMA_API_KEY = os.environ.get("GAMMA_API_KEY")
-
-# Этот блок теперь будет работать как запасной вариант для локального теста,
-# если переменные окружения не найдены.
-if not (GEMINI_API_KEY and GAMMA_API_KEY):
-    st.sidebar.warning("API ключи не найдены в окружении. Введите их вручную для локального теста.")
-    GEMINI_API_KEY = st.sidebar.text_input("Gemini API Key", type="password")
-    GAMMA_API_KEY = st.sidebar.text_input("Gamma API Key", type="password")
-
-
 
 def extract_metrics_from_excel(uploaded_excel_file):
     """Извлекает ключевые метрики из загруженного Excel-файла."""
@@ -226,3 +214,4 @@ if st.session_state.generated_pdf:
         mime="application/pdf"
 
     )
+

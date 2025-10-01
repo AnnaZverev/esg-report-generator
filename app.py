@@ -41,9 +41,9 @@ def extract_data_from_pdf(uploaded_pdf_file, gemini_api_key, excel_provided):
         genai.configure(api_key=gemini_api_key)
         pdf_reader = PyPDF2.PdfReader(uploaded_pdf_file)
         pdf_text = "".join(page.extract_text() for page in pdf_reader.pages)
-        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        model = genai.GenerativeModel('gemini-2.5-pro')
 
-        # --- ИЗМЕНЕНИЕ: Детализированные промпты по 11 раскрытиям TCFD ---
+        # --- Детализированные промпты по 11 раскрытиям TCFD ---
         prompts_en_tcfd = {
             # Governance (2 disclosures)
             "Governance a) Board's oversight": "Describe the board’s oversight of climate-related risks and opportunities.",
@@ -263,7 +263,7 @@ def generate_with_gamma(gamma_api_key, gamma_prompt, company_name):
 
 st.set_page_config(page_title="ESG Report Generator", layout="wide")
 st.title("🤖 Генератор ESG-отчетов (TCFD)")
-st.markdown("Загрузите отчет в формате GRI (PDF + Excel), и приложение сгенерирует для вас новый отчет в формате TCFD.")
+st.markdown("Загрузите отчет в формате GRI (PDF + по возможности Excel DataBook), и приложение сгенерирует для вас новый отчет в формате TCFD.")
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GAMMA_API_KEY = os.environ.get("GAMMA_API_KEY")

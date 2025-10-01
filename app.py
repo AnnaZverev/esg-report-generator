@@ -6,8 +6,20 @@ import pandas as pd
 import PyPDF2
 import google.generativeai as genai
 from io import BytesIO
+import os
 
-# --- Функции из нашего Colab-ноутбука ---
+# Загружаем секреты из переменных окружения Render
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GAMMA_API_KEY = os.environ.get("GAMMA_API_KEY")
+
+# Этот блок теперь будет работать как запасной вариант для локального теста,
+# если переменные окружения не найдены.
+if not (GEMINI_API_KEY and GAMMA_API_KEY):
+    st.sidebar.warning("API ключи не найдены в окружении. Введите их вручную для локального теста.")
+    GEMINI_API_KEY = st.sidebar.text_input("Gemini API Key", type="password")
+    GAMMA_API_KEY = st.sidebar.text_input("Gamma API Key", type="password")
+
+
 
 def extract_metrics_from_excel(uploaded_excel_file):
     """Извлекает ключевые метрики из загруженного Excel-файла."""
@@ -163,12 +175,11 @@ st.set_page_config(page_title="ESG Report Generator", layout="wide")
 st.title("🤖 Генератор ESG-отчетов (TCFD)")
 st.markdown("Загрузите отчет в формате GRI (PDF + Excel), и приложение сгенерирует для вас новый отчет в формате TCFD.")
 
-# Используем секреты Streamlit, которые будут настроены на Render
-try:
-    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-    GAMMA_API_KEY = st.secrets["GAMMA_API_KEY"]
-except:
-    st.sidebar.warning("API ключи не найдены в секретах. Введите их вручную для локального теста.")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GAMMA_API_KEY = os.environ.get("GAMMA_API_KEY")
+
+if not (GEMINI_API_KEY and GAMMA_API_KEY):
+    st.sidebar.warning("API ключи не найдены в окружении. Введите их вручную для локального теста.")
     GEMINI_API_KEY = st.sidebar.text_input("Gemini API Key", type="password")
     GAMMA_API_KEY = st.sidebar.text_input("Gamma API Key", type="password")
 
@@ -213,4 +224,5 @@ if st.session_state.generated_pdf:
         data=st.session_state.generated_pdf,
         file_name=f"TCFD_Report_{sanitized_company_name}.pdf",
         mime="application/pdf"
+
     )

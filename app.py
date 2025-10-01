@@ -195,7 +195,7 @@ if st.button("🚀 Сгенерировать TCFD отчет", type="primary"):
 
             if quantitative and narrative:
                 # Шаг 2: Сборка промпта для Gamma
-                st.info("📝 Данные извлечены, собираю финальный промпт для Gamma...")
+                st.info("📝 Данные извлечены, готовлю выжимку для отчета...")
                 gamma_prompt = build_gamma_prompt(company_name_input, reporting_year_input, quantitative, narrative)
                 
                 # Шаг 3: Генерация в Gamma
@@ -216,6 +216,7 @@ if st.session_state.generated_pdf:
         mime="application/pdf"
 
     )
+
 
 
 

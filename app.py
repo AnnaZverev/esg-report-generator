@@ -39,7 +39,7 @@ def extract_narrative_from_pdf(uploaded_pdf_file, gemini_api_key):
         pdf_reader = PyPDF2.PdfReader(uploaded_pdf_file)
         pdf_text = "".join(page.extract_text() for page in pdf_reader.pages)
 
-        model = genai.GenerativeModel('gemini-1.5-pro-latest')
+        model = genai.GenerativeModel('gemini-2.5-pro')
 
         prompts_en = {
             "Governance": "Analyze the text and briefly describe the role of the Board of Directors and management in overseeing and managing climate-related risks.",
@@ -214,4 +214,5 @@ if st.session_state.generated_pdf:
         mime="application/pdf"
 
     )
+
 

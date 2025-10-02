@@ -288,45 +288,41 @@ if 'generated_pdf' not in st.session_state:
 
 if st.button("🚀 Сгенерировать TCFD отчет", type="primary"):
     
-    # 1: Главная проверка только на обязательный PDF-файл и ключи
     if pdf_file and GEMINI_API_KEY and GAMMA_API_KEY:
         with st.spinner("Пожалуйста, подождите, идет магия... Это может занять несколько минут."):
             
-            # 2. Создаем флаг, чтобы знать, был ли загружен Excel
             excel_provided = bool(excel_file)
-            
-            # 3. Извлекаем все данные из PDF (текст и, возможно, цифры, если Excel нет)
             all_pdf_data = extract_data_from_pdf(pdf_file, GEMINI_API_KEY, excel_provided)
             
-            # Создаем пустой словарь для количественных данных
+            # --- Отображаем извлеченную информацию ---
+            if all_pdf_data:
+                with st.expander("🔍 Показать информацию, извлеченную из PDF по 11 раскрытиям TCFD"):
+                    for key, value in all_pdf_data.items():
+                        st.subheader(f"Раскрытие: {key}")
+                        # Используем markdown с цитатой для красивого отображения
+                        st.markdown(f"> {value.strip()}")
+            # --
+
             quantitative = {}
 
-            # 4. Решаем, откуда брать количественные данные
             if excel_provided:
                 st.info("Найден Excel файл, извлекаю точные количественные данные...")
-                # Если есть Excel - берем цифры из него (они точнее)
                 quantitative = extract_metrics_from_excel(excel_file)
             else:
                 st.info("Excel файл не загружен, использую данные, найденные в PDF...")
-                # Если Excel нет - пытаемся собрать цифры из ответа Gemini
                 quant_text = all_pdf_data.get('Quantitative Data (if available)', '')
                 lines = quant_text.split('\n')
                 for line in lines:
                     if "Scope 1" in line: quantitative["Scope 1 GHG Emissions"] = re.search(r'(\d+\.?\d*)', line).group(1) if re.search(r'(\d+\.?\d*)', line) else "Not available"
                     if "Scope 2" in line: quantitative["Scope 2 GHG Emissions"] = re.search(r'(\d+\.?\d*)', line).group(1) if re.search(r'(\d+\.?\d*)', line) else "Not available"
 
-            # 5. Проверяем, что извлечение прошло успешно, и запускаем генерацию
             if all_pdf_data:
-                # Собираем промпт для Gamma, используя все извлеченные данные
                 gamma_prompt = build_gamma_prompt(company_name_input, reporting_year_input, quantitative, all_pdf_data)
-                
-                # Запускаем генерацию в Gamma
                 pdf_bytes = generate_with_gamma(GAMMA_API_KEY, gamma_prompt, company_name_input)
                 
                 if pdf_bytes:
                     st.session_state.generated_pdf = pdf_bytes
     else:
-        # Если обязательный PDF-файл не загружен, выводим ошибку
         st.error("Пожалуйста, загрузите PDF-файл и убедитесь, что API ключи настроены.")
         
 if st.session_state.generated_pdf:
@@ -339,4 +335,5 @@ if st.session_state.generated_pdf:
         mime="application/pdf"
 
     )
+
 

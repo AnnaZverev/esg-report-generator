@@ -209,7 +209,7 @@ def generate_with_gamma(gamma_api_key, gamma_prompt, company_name):
         "inputText": gamma_prompt,
         "format": "document",
         "exportAs": "pdf",
-        "textMode": "condense",
+        "textMode": "generate",
         "additionalInstructions": "It is critically important that all text fits neatly within the page boundaries. Adjust layouts or slightly condense the text on each page to prevent any overflow.",
         "themeName": "ESG_Anna",
         "textOptions": {"language": "en", "amount": "detailed"},
@@ -335,5 +335,6 @@ if st.session_state.generated_pdf:
         mime="application/pdf"
 
     )
+
 
 

@@ -211,7 +211,7 @@ def generate_with_gamma(gamma_api_key, gamma_prompt, company_name):
         "exportAs": "pdf",
         "textMode": "generate",
         "additionalInstructions": "It is critically important that all text fits neatly within the page boundaries. Adjust layouts or slightly condense the text on each page to prevent any overflow.",
-        "themeName": "ESG_Anna",
+        "themeName": "Blue Steel",
         "textOptions": {"language": "en", "amount": "detailed"},
         "imageOptions": {"source": "aiGenerated", "style": "photorealistic, corporate, clean"},
         "cardOptions": {"dimensions": "a4"}
@@ -335,6 +335,7 @@ if st.session_state.generated_pdf:
         mime="application/pdf"
 
     )
+
 
 
 
